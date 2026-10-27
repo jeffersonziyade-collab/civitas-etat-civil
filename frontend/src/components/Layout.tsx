@@ -29,9 +29,11 @@ export default function Layout({ children }: { children: ReactNode }) {
       <header className="bg-civil-700 text-white">
         <div className="max-w-5xl mx-auto px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold text-lg border border-white/30">
-              PN
-            </div>
+            <img
+              src="/logo-porto-novo.webp"
+              alt="Armoiries de la ville de Porto-Novo"
+              className="h-16 w-12 rounded-md bg-white object-cover"
+            />
             <div>
               <div className="font-semibold leading-tight">Mairie de Porto-Novo</div>
               <div className="text-xs text-civil-50/80 leading-tight">
