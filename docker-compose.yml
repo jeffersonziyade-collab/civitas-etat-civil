@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: etat-civil-mongo
+    restart: unless-stopped
+    # Pas de port exposé côté hôte : seul le réseau interne Docker y accède.
+    # Pour les sauvegardes, utiliser `docker exec etat-civil-mongo mongodump ...`
+    # plutôt que d'ouvrir 27017 sur l'extérieur.
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: etat-civil-backend
+    restart: unless-stopped
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/etat_civil
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=8h
+      - JWT_EXPIRES_IN_CITOYEN=30d
+      - UPLOAD_DIR=uploads
+      - FRONTEND_URL=${FRONTEND_URL}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-Mairie de Porto-Novo <no-reply@porto-novo.bj>}
+      - CINETPAY_API_KEY=${CINETPAY_API_KEY:-}
+      - CINETPAY_SITE_ID=${CINETPAY_SITE_ID:-}
+      - CINETPAY_NOTIFY_URL=${FRONTEND_URL}/api/paiement/webhook
+      - CINETPAY_RETURN_URL=${FRONTEND_URL}/suivi
+      - ESERVICES_BENIN_API_URL=${ESERVICES_BENIN_API_URL:-}
+      - ESERVICES_BENIN_API_KEY=${ESERVICES_BENIN_API_KEY:-}
+      - NIP_VERIFICATION_STRICTE=${NIP_VERIFICATION_STRICTE:-false}
+      - MAIRIE_NOM=${MAIRIE_NOM:-Mairie de Porto-Novo}
+      - MAIRIE_ADRESSE=${MAIRIE_ADRESSE:-Porto-Novo, Bénin}
+      - MAIRIE_TELEPHONE=${MAIRIE_TELEPHONE:-}
+      - MAIRIE_EMAIL=${MAIRIE_EMAIL:-}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      - mongodb
+
+  frontend:
+    build: ./frontend
+    container_name: etat-civil-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # Reverse proxy public : termine le HTTPS et obtient/renouvelle automatiquement
+  # le certificat Let's Encrypt pour le domaine déclaré dans Caddyfile — aucune
+  # configuration manuelle de certbot nécessaire.
+  caddy:
+    image: caddy:2-alpine
+    container_name: etat-civil-caddy
+    restart: unless-stopped
+    environment:
+      - DOMAIN=${DOMAIN}
+      - CADDY_ADMIN_EMAIL=${CADDY_ADMIN_EMAIL:-contact@porto-novo.bj}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  mongo_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:
